@@ -1,0 +1,41 @@
+<?php
+namespace App\Filament\Widgets;
+
+use App\Models\AmlQuestionnaire;
+use App\Models\Pratice;
+use App\States\Dossier\ValutazioneAml;
+use Filament\Widgets\StatsOverviewWidget\Stat;
+use Filament\Widgets\StatsOverviewWidget as BaseWidget;
+
+class ComplianceStatsWidget extends BaseWidget
+{
+    // Aggiorna i dati ogni 60 secondi in automatico
+    protected static ?string $pollingInterval = '60s';
+
+    protected function getStats(): array
+    {
+        // 1. Pratiche in attesa di valutazione AML (usiamo lo stato di Spatie)
+        $praticheInValutazione = Dossier::whereState('status', ValutazioneAml::class)->count();
+
+        // 2. Questionari AML in scadenza nei prossimi 30 giorni
+        $questionariInScadenza = AmlQuestionnaire::whereBetween('valid_until', [now(), now()->addDays(30)])->count();
+
+        // 3. Questionari già scaduti (Rosso allarme!)
+        $questionariScaduti = AmlQuestionnaire::where('valid_until', '<', now())->count();
+
+        return [
+            Stat::make('Pratiche da Revisionare', $praticheInValutazione)
+                ->description('In attesa di controllo antiriciclaggio')
+                ->descriptionIcon('heroicon-m-clock')
+                ->color($praticheInValutazione > 0 ? 'warning' : 'success'),
+            Stat::make('KYC in Scadenza (30gg)', $questionariInScadenza)
+                ->description('Adeguata verifica da aggiornare')
+                ->descriptionIcon('heroicon-m-exclamation-triangle')
+                ->color('warning'),
+            Stat::make('KYC Scaduti', $questionariScaduti)
+                ->description('Bloccare operatività clienti!')
+                ->descriptionIcon('heroicon-m-shield-exclamation')
+                ->color($questionariScaduti > 0 ? 'danger' : 'success'),
+        ];
+    }
+}

@@ -1,0 +1,23 @@
+<?php
+
+namespace App\Filament\Resources\EmploymentTypes\Pages;
+
+use App\Filament\Resources\EmploymentTypes\EmploymentTypeResource;
+use App\Filament\Traits\HasRegolamentoAction;
+use Filament\Actions\CreateAction;
+use Filament\Resources\Pages\ListRecords;
+
+class ListEmploymentTypes extends ListRecords
+{
+    use HasRegolamentoAction;
+    
+    protected static string $resource = EmploymentTypeResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            CreateAction::make(),
+            $this->getRegolamentoAction(),
+        ];
+    }
+}

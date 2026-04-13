@@ -140,7 +140,6 @@ class ImportReportingPrincipalsCommand extends Command
 
         // Determine principal type and status
         $isActive = strtolower($currentStatus) === 'attivo';
-        $isDummy = false;  // These are real reporting principals
 
         // Map CSV status to database enum values
         $status = 'ATTIVO';
@@ -165,7 +164,7 @@ class ImportReportingPrincipalsCommand extends Command
             'dismissed_at' => $rescissionEffectiveDate,
             'is_active' => $isActive,
             'is_reported' => true,
-            'is_dummy' => $isDummy,
+            'is_dummy' => false,
             'status' => $status,
             'type' => $this->detectPrincipalType($bankName),
             'principal_type' => 'banca',

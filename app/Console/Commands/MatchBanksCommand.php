@@ -12,6 +12,18 @@ class MatchBanksCommand extends Command
     protected $signature = 'banks:match-abi {--force : Sovrascrive anche gli ABI già presenti}';
     protected $description = 'Abbina i nomi banche di Principal con la tabella ufficiale ABI';
 
+    /**
+     * Esegue il comando di abbinamento ABI per tutti i Principal.
+     *
+     * Flusso di esecuzione:
+     * 1. Itera in chunk da 100 record sulla tabella `principals` (solo quelli con ABI non nullo).
+     * 2. Per ogni Principal chiama `BankMatcherService::findBestAbi()` passando il nome della banca.
+     * 3. Se viene trovato un match, aggiorna il campo `abi` del record con il codice a 5 cifre.
+     * 4. Al termine mostra un riepilogo con il numero di match effettuati e di fallimenti.
+     *
+     * @param  BankMatcherService  $matcher  Servizio di matching fuzzy nome banca → codice ABI.
+     * @return int
+     */
     public function handle(BankMatcherService $matcher)
     {
         $this->info('🚀 Avvio scansione completa della tabella Principal...');

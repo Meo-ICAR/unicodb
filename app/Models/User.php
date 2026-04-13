@@ -67,25 +67,11 @@ class User extends Authenticatable implements HasTenants
     public function canAccessTenant(Model $tenant): bool
     {
         return true;
-        // Durante i test, permettiamo sempre l'accesso al tenant creato
-        if (app()->environment('testing')) {
-            return true;
-        }
-
-        if (is_null($this->company_id)) {
-            return true;
-        }
-
-        return $this->company_id === $tenant->id;
     }
 
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
-        // Durante i test, permettiamo sempre l'accesso
-        if (app()->environment('testing')) {
-            return true;
-        }
     }
 
     public function company()

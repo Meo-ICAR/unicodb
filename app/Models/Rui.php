@@ -5,6 +5,37 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Rappresenta un intermediario assicurativo iscritto al RUI (IVASS).
+ *
+ * @property int                      $id
+ * @property string|null              $oss
+ * @property bool                     $inoperativo
+ * @property \Carbon\Carbon|null      $data_inizio_inoperativita
+ * @property string                   $numero_iscrizione_rui
+ * @property \Carbon\Carbon|null      $data_iscrizione
+ * @property string|null              $cognome_nome
+ * @property string|null              $stato
+ * @property string|null              $comune_nascita
+ * @property \Carbon\Carbon|null      $data_nascita
+ * @property string|null              $ragione_sociale
+ * @property string|null              $provincia_nascita
+ * @property string|null              $titolo_individuale_sez_a
+ * @property string|null              $attivita_esercitata_sez_a
+ * @property string|null              $titolo_individuale_sez_b
+ * @property string|null              $attivita_esercitata_sez_b
+ * @property int|null                 $rui_section_id
+ * @property \Carbon\Carbon|null      $created_at
+ * @property \Carbon\Carbon|null      $updated_at
+ *
+ * @property-read \App\Models\RuiSection                                                          $ruiSection
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiWebsite>           $websites
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiCariche>           $carichePg
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiSedi>              $sedi
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiCollaboratori>     $collaboratori
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiCollaboratori>     $collaboratoriILiv
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\RuiCollaboratori>     $collaboratoriIILiv
+ */
 class Rui extends Model
 {
     use HasFactory;
@@ -73,8 +104,11 @@ class Rui extends Model
     }
 
     /**
-     * Calculate Italian codice fiscale from personal data
-     * Format: 3 letters from surname + name + birth date + birth place + check digit
+     * Calculate Italian codice fiscale from personal data.
+     * Format: 3 letters from surname + name + birth date + birth place + check digit.
+     * Returns an empty string if any required field (cognome_nome, data_nascita, comune_nascita) is missing.
+     *
+     * @return string
      */
     public function calculateCodiceFiscale(): string
     {

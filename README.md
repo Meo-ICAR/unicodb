@@ -1,59 +1,184 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Pannello Amministrativo — Elenchi Pubblici Italiani
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Applicazione Laravel 12 + Filament 5 per la consultazione e gestione degli elenchi pubblici italiani:
 
-## About Laravel
+- **ABI** — Associazione Bancaria Italiana (codici banca a 5 cifre)
+- **Comuni** — Elenco ufficiale ISTAT dei comuni italiani con codici e dati geografici
+- **RUI** — Registro Unico degli Intermediari assicurativi e riassicurativi (gestito da IVASS)
+- **IVASS** — Istituto per la Vigilanza sulle Assicurazioni
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Prerequisiti di sistema
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP >= 8.2 (con estensioni: `pdo`, `mbstring`, `xml`, `curl`)
+- Composer
+- Node.js + npm
+- MySQL o MariaDB
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Installazione
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Seguire i passi nell'ordine indicato:
 
-## Laravel Sponsors
+```bash
+# 1. Clonare il repository
+git clone <repository-url>
+cd <project-folder>
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# 2. Installare le dipendenze PHP
+composer install
 
-### Premium Partners
+# 3. Installare le dipendenze JavaScript
+npm install
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# 4. Configurare l'ambiente
+cp .env.example .env
+# Modificare .env con le credenziali del database e le altre variabili necessarie
 
-## Contributing
+# 5. Generare la chiave applicativa
+php artisan key:generate
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+# 6. Eseguire le migrazioni del database
+php artisan migrate
 
-## Code of Conduct
+# 7. Compilare gli asset frontend
+npm run build
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Console Commands disponibili
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### Importazione RUI
 
-## License
+**`rui:import`** — Importa tutti i file CSV del RUI dalla directory `public/RUI/`
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan rui:import
+php artisan rui:import --clear          # Svuota i dati esistenti prima dell'import
+php artisan rui:import --clear --force  # Svuota senza chiedere conferma
+php artisan rui:import --stats          # Mostra statistiche prima e dopo l'import
+```
+
+---
+
+**`rui:import-single`** — Importa una singola tabella RUI dal file CSV corrispondente
+
+```bash
+php artisan rui:import-single {table}
+php artisan rui:import-single rui                    # Importa la tabella principale
+php artisan rui:import-single rui --clear            # Svuota prima di importare
+php artisan rui:import-single ELENCO_INTERMEDIARI    # Importa per nome file
+php artisan rui:import-single --list                 # Elenca le 9 tabelle disponibili
+```
+
+---
+
+**`rui:populate-collaboratori-names`** — Popola i campi nome in `rui_collaboratori` tramite join con la tabella `rui`
+
+```bash
+php artisan rui:populate-collaboratori-names
+php artisan rui:populate-collaboratori-names --batch=500   # Dimensione batch (default: 1000)
+php artisan rui:populate-collaboratori-names --force       # Aggiorna anche i record già popolati
+php artisan rui:populate-collaboratori-names --dry-run     # Mostra cosa verrebbe aggiornato senza modificare
+```
+
+---
+
+**`rui:sync-principals-from-collaboratori`** — Sincronizza i principal dai dati `rui_collaboratori` in base ai numeri di iscrizione RUI
+
+```bash
+php artisan rui:sync-principals-from-collaboratori
+php artisan rui:sync-principals-from-collaboratori --company-id=1  # Solo una company specifica
+php artisan rui:sync-principals-from-collaboratori --batch=500     # Dimensione batch (default: 1000)
+php artisan rui:sync-principals-from-collaboratori --dry-run       # Simulazione senza modifiche
+php artisan rui:sync-principals-from-collaboratori --force         # Forza aggiornamento anche se i nomi coincidono
+```
+
+---
+
+### Matching ABI
+
+**`banks:match-abi`** — Abbina i nomi banche dei Principal con la tabella ufficiale ABI tramite similarità testuale
+
+```bash
+php artisan banks:match-abi
+php artisan banks:match-abi --force   # Sovrascrive anche gli ABI già presenti
+```
+
+---
+
+### Importazione Principal
+
+**`principals:import-reporting`** — Importa i principal mancanti dal file CSV di segnalazione con `is_reported=true`
+
+```bash
+php artisan principals:import-reporting
+php artisan principals:import-reporting --file="percorso/al/file.csv"  # File CSV personalizzato
+php artisan principals:import-reporting --dry-run                       # Simulazione senza import
+```
+
+---
+
+### OAM
+
+**`oam:import`** — Sincronizza i dati `practice_oams` per una company con filtro per data
+
+```bash
+php artisan oam:import
+php artisan oam:import --company-id=1                    # Company specifica
+php artisan oam:import --start-date=2024-01-01           # Data di inizio
+php artisan oam:import --end-date=2024-06-30             # Data di fine
+php artisan oam:import --stats                           # Solo statistiche, senza sincronizzazione
+```
+
+---
+
+### AUI
+
+**`aui:consolidamento`** — Consolida i log AUI in record ufficiali prima della scadenza dei 30 giorni
+
+```bash
+php artisan aui:consolidamento
+```
+
+---
+
+## Struttura directory CSV per l'importazione RUI
+
+I file CSV del RUI devono essere collocati nella directory `public/RUI/` con i seguenti nomi esatti:
+
+```
+public/RUI/
+├── ELENCO_INTERMEDIARI.csv              # Intermediari assicurativi (tabella principale rui)
+├── ELENCO_SEDI.csv                      # Sedi degli intermediari
+├── ELENCO_MANDATI.csv                   # Mandati degli intermediari
+├── ELENCO_CARICHE.csv                   # Cariche delle persone giuridiche
+├── ELENCO_COLLABORATORI.csv             # Collaboratori degli intermediari
+├── ELENCO_COLLABACCESSORI.csv           # Collaboratori accessori
+├── ELENCO_AG_VEN_PROD_NONST_ISCR_S.csv # Agenti/venditori/produttori non stabiliti
+├── ELENCO_RESP_DISTRIB_SEZ_D.csv        # Responsabili distribuzione sezione D
+└── ELENCO_SITO_INTERNET.csv             # Siti internet degli intermediari
+```
+
+I file CSV sono disponibili per il download sul sito ufficiale IVASS.
+
+---
+
+## Eseguire i test
+
+```bash
+# Con Artisan
+php artisan test
+
+# Con Pest direttamente
+./vendor/bin/pest
+
+# Solo i test unitari
+./vendor/bin/pest tests/Unit/
+
+# Solo i test di feature
+./vendor/bin/pest tests/Feature/
+```

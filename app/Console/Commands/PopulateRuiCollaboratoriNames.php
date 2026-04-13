@@ -26,6 +26,19 @@ class PopulateRuiCollaboratoriNames extends Command
 
     /**
      * Execute the console command.
+     *
+     * Populates the `intermediario`, `collaboratore` and `dipendente` name fields
+     * in the `rui_collaboratori` table by joining with the `rui` table.
+     *
+     * Options:
+     * - `--batch=N`  : Number of records to process in each batch (default: 1000).
+     *                  Controls memory usage when iterating over large datasets.
+     * - `--force`    : Overwrite existing names even when they are already populated.
+     *                  Without this flag only records with empty/null names are updated.
+     * - `--dry-run`  : Simulate the update and display sample records that would be
+     *                  changed without writing anything to the database.
+     *
+     * @return int 0 on success, 1 on failure
      */
     public function handle()
     {

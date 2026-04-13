@@ -37,6 +37,20 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Register utf8mb4_unicode_ci collation for SQLite (used in testing).
+        // SQLite does not natively support MySQL collations, so we register a
+        // no-op collation that falls back to standard string comparison.
+        if ($this->app['db']->getDefaultConnection() === 'sqlite') {
+            try {
+                $pdo = $this->app['db']->connection()->getPdo();
+                if (method_exists($pdo, 'sqliteCreateCollation')) {
+                    $pdo->sqliteCreateCollation('utf8mb4_unicode_ci', 'strcmp');
+                }
+            } catch (\Throwable $e) {
+                // Ignore errors if the connection is not yet available
+            }
+        }
+
         ActivityLog::creating(function (ActivityLog $activityLog) {
             if (Filament::getTenant()) {
                 $activityLog->company_id = Filament::getTenant()->id;

@@ -52,7 +52,14 @@ class ImportRuiData extends Command
     /**
      * Execute the console command.
      *
-     * @return int
+     * Execution flow:
+     * 1. If the `--clear` option is set, prompts for confirmation (unless `--force` is also set)
+     *    and clears all existing RUI data via the import service.
+     * 2. Imports all RUI CSV files found in the `public/RUI/` directory.
+     * 3. Displays the import results (files processed, records imported, errors).
+     * 4. Optionally shows import statistics before and after the import if `--stats` is set.
+     *
+     * @return int 0 (Command::SUCCESS) on success, 1 (Command::FAILURE) on error
      */
     public function handle()
     {

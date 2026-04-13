@@ -16,188 +16,33 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Facades\Excel;
 
+/**
+ * Servizio per l'importazione dei file CSV del RUI (Registro Unico degli Intermediari)
+ * dalla directory `public/RUI/` nelle rispettive tabelle del database.
+ *
+ * I 9 file CSV attesi nella directory `public/RUI/` sono:
+ *  - ELENCO_INTERMEDIARI.csv       → tabella `rui`
+ *  - ELENCO_SEDI.csv               → tabella `rui_sedi`
+ *  - ELENCO_MANDATI.csv            → tabella `rui_mandati`
+ *  - ELENCO_CARICHE.csv            → tabella `rui_cariche`
+ *  - ELENCO_COLLABORATORI.csv      → tabella `rui_collaboratori`
+ *  - ELENCO_COLLABACCESSORI.csv    → tabella `rui_accessoris`
+ *  - ELENCO_AG_VEN_PROD_NONST_ISCR_S.csv → tabella `rui_agentis`
+ *  - ELENCO_RESP_DISTRIB_SEZ_D.csv → tabella `rui_sezds`
+ *  - ELENCO_SITO_INTERNET.csv      → tabella `rui_websites`
+ */
 class RuiCsvImportService
 {
+    /**
+     * Restituisce le impostazioni di parsing CSV (es. delimitatore).
+     *
+     * @return array<string, string> Impostazioni CSV
+     */
     public function getCsvSettings(): array
     {
         return [
             'delimiter' => ';'
         ];
-    }
-
-    /**
-     * Debug: Import only 10 records per file and verify data
-     *
-     * @return array Import results
-     */
-    public function debugImportTenRecords(): array
-    {
-        try {
-            $results = [
-                'files_processed' => 0,
-                'records_imported' => 0,
-                'errors' => [],
-                'verification' => []
-            ];
-
-            $ruiDirectory = public_path('RUI');
-            $csvFiles = glob($ruiDirectory . '/*.csv');
-
-            foreach ($csvFiles as $filePath) {
-                $fileName = basename($filePath, '.csv');
-
-                Log::info("Debug: Processing {$fileName} - 10 records only");
-
-                $this->processCsvFileWithLimit($filePath, $fileName, $results, 10);
-                $results['files_processed']++;
-
-                // Verify the imported data
-                $this->verifyImportedData($fileName, $results);
-            }
-
-            return $results;
-        } catch (\Exception $e) {
-            Log::error('Debug import failed: ' . $e->getMessage());
-            return [
-                'files_processed' => 0,
-                'records_imported' => 0,
-                'errors' => [$e->getMessage()],
-                'verification' => []
-            ];
-        }
-    }
-
-    /**
-     * Process CSV file with record limit
-     *
-     * @param string $filePath
-     * @param string $fileName
-     * @param array $results
-     * @param int $limit
-     * @return void
-     */
-    private function processCsvFileWithLimit(string $filePath, string $fileName, array &$results, int $limit = 10): void
-    {
-        try {
-            $importClass = $this->getImportClass($fileName);
-            if (!$importClass) {
-                $results['errors'][] = "No import class found for file: {$fileName}";
-                return;
-            }
-
-            $import = new $importClass($limit, true, $fileName);
-
-            // Create a limited import by reading only first few rows
-            $this->importLimitedRows($import, $filePath, $limit);
-
-            $results['records_imported'] += $import->getImportedCount();
-
-            Log::info("Debug: Processed {$fileName} - {$import->getImportedCount()} records");
-        } catch (\Exception $e) {
-            $results['errors'][] = "Error processing {$fileName}: " . $e->getMessage();
-        }
-    }
-
-    /**
-     * Import limited rows from CSV
-     *
-     * @param mixed $import
-     * @param string $filePath
-     * @param int $limit
-     * @return void
-     */
-    private function importLimitedRows($import, string $filePath, int $limit): void
-    {
-        $handle = fopen($filePath, 'r');
-        if (!$handle) {
-            throw new \Exception("Cannot open file: {$filePath}");
-        }
-
-        // Skip header
-        fgetcsv($handle, 1000, ';');
-
-        $importedCount = 0;
-        while (($row = fgetcsv($handle, 1000, ';')) !== false && $importedCount < $limit) {
-            // Convert to associative array with lowercase keys
-            $headerRow = $this->getCsvHeaders($filePath);
-            $assocRow = [];
-            foreach ($headerRow as $index => $header) {
-                $assocRow[strtolower($header)] = $row[$index] ?? '';
-            }
-
-            // Call the model method and save the result
-            $model = $import->model($assocRow);
-            if ($model) {
-                $model->save();
-            }
-            $importedCount++;
-        }
-
-        fclose($handle);
-    }
-
-    /**
-     * Get CSV headers
-     *
-     * @param string $filePath
-     * @return array
-     */
-    private function getCsvHeaders(string $filePath): array
-    {
-        $handle = fopen($filePath, 'r');
-        $headers = fgetcsv($handle, 1000, ';');
-        fclose($handle);
-        return $headers ?: [];
-    }
-
-    /**
-     * Verify imported data for a table
-     *
-     * @param string $fileName
-     * @param array $results
-     * @return void
-     */
-    private function verifyImportedData(string $fileName, array &$results): void
-    {
-        $tableMap = [
-            'ELENCO_SITO_INTERNET' => 'rui_websites',
-            'ELENCO_MANDATI' => 'rui_mandati',
-            'ELENCO_COLLABORATORI' => 'rui_collaboratori',
-            'ELENCO_COLLABACCESSORI' => 'rui_accessoris',
-            'ELENCO_INTERMEDIARI' => 'rui',
-            'ELENCO_SEDI' => 'rui_sedi',
-            'ELENCO_AG_VEN_PROD_NONST_ISCR_S' => 'rui_agentis',
-            'ELENCO_RESP_DISTRIB_SEZ_D' => 'rui_sezds',
-            'ELENCO_CARICHE' => 'rui_cariche',
-        ];
-
-        $tableName = $tableMap[$fileName] ?? null;
-        if (!$tableName) {
-            return;
-        }
-
-        try {
-            $modelClass = $this->getModelClass($tableName);
-            if (!$modelClass) {
-                return;
-            }
-
-            $count = $modelClass::count();
-            $firstRecord = $modelClass::first();
-
-            $verification = [
-                'table' => $tableName,
-                'total_records' => $count,
-                'first_record_data' => $firstRecord ? $this->getRecordData($firstRecord) : null,
-                'has_data' => $count > 0 && $this->recordHasData($firstRecord)
-            ];
-
-            $results['verification'][] = $verification;
-
-            Log::info("Verification for {$tableName}: {$count} records, has_data: " . ($verification['has_data'] ? 'YES' : 'NO'));
-        } catch (\Exception $e) {
-            $results['errors'][] = "Verification error for {$tableName}: " . $e->getMessage();
-        }
     }
 
     /**
@@ -224,80 +69,11 @@ class RuiCsvImportService
     }
 
     /**
-     * Get record data as array
+     * Importa tutti i file CSV RUI dalla directory `public/RUI/`.
+     * Salta le tabelle che contengono già dati (a meno che non venga forzato).
      *
-     * @param mixed $record
-     * @return array
-     */
-    private function getRecordData($record): array
-    {
-        return $record->toArray();
-    }
-
-    /**
-     * Check if record has actual data (not just empty strings)
-     *
-     * @param mixed $record
-     * @return bool
-     */
-    private function recordHasData($record): bool
-    {
-        if (!$record) {
-            return false;
-        }
-
-        $data = $record->toArray();
-        unset($data['id'], $data['created_at'], $data['updated_at']);
-
-        // Check if any field has non-empty data
-        foreach ($data as $value) {
-            if ($value !== null && $value !== '' && $value !== '0') {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Debug: Import only RUI file
-     *
-     * @return array Import results
-     */
-    public function debugImportRuiOnly(): array
-    {
-        try {
-            $results = [
-                'files_processed' => 0,
-                'records_imported' => 0,
-                'errors' => []
-            ];
-
-            $filePath = public_path('RUI/ELENCO_INTERMEDIARI.csv');
-            $fileName = 'ELENCO_INTERMEDIARI';
-
-            Log::info("Debug: Processing RUI file only - {$filePath}");
-
-            $this->processCsvFile($filePath, $fileName, $results);
-            $results['files_processed']++;
-
-            Log::info("Debug: RUI import completed - {$results['records_imported']} records");
-
-            return $results;
-        } catch (\Exception $e) {
-            Log::error('RUI debug import failed: ' . $e->getMessage());
-            return [
-                'files_processed' => 0,
-                'records_imported' => 0,
-                'errors' => [$e->getMessage()]
-            ];
-        }
-    }
-
-    /**
-     * Import all RUI CSV files from public/RUI directory (only empty tables)
-     *
-     * @return array Import results
+     * @return array{files_processed: int, records_imported: int, errors: list<string>, skipped_tables: list<array>} Risultati dell'importazione
+     * @throws \Exception In caso di errore critico durante l'importazione
      */
     public function importAllRuiFiles(): array
     {
@@ -343,11 +119,13 @@ class RuiCsvImportService
     }
 
     /**
-     * Import a single specific RUI table (only if table is empty)
+     * Importa una singola tabella RUI dal file CSV corrispondente.
+     * Salta l'importazione se la tabella contiene già dati, a meno che `$forceImport` sia `true`.
      *
-     * @param string $tableName The name of the table to import (e.g., 'ELENCO_INTERMEDIARI')
-     * @param bool $forceImport Force import even if table contains data
-     * @return array Import results
+     * @param string $tableName Nome della tabella (es. `rui`, `rui_sedi`) o nome del file CSV (es. `ELENCO_INTERMEDIARI`)
+     * @param bool   $forceImport Se `true`, importa anche se la tabella contiene già dati
+     * @return array{files_processed: int, records_imported: int, errors: list<string>, table_name: string, skipped: bool} Risultati dell'importazione
+     * @throws \Exception In caso di errore critico durante l'importazione
      */
     public function importSingleRuiTable(string $tableName, bool $forceImport = false): array
     {
@@ -413,9 +191,10 @@ class RuiCsvImportService
     }
 
     /**
-     * Get list of available RUI tables for import
+     * Restituisce l'elenco delle 9 tabelle RUI disponibili per l'importazione,
+     * con il nome del file CSV sorgente, la descrizione e la classe modello associata.
      *
-     * @return array Available tables with their descriptions
+     * @return array<string, array{file: string, description: string, model: string}> Mappa tabella → metadati
      */
     public function getAvailableRuiTables(): array
     {
@@ -469,10 +248,11 @@ class RuiCsvImportService
     }
 
     /**
-     * Clear data for a single specific RUI table
+     * Svuota una singola tabella RUI tramite `TRUNCATE`.
      *
-     * @param string $tableName The name of the table to clear
-     * @return array Results of the clearing operation
+     * @param string $tableName Nome della tabella da svuotare (es. `rui`, `rui_sedi`)
+     * @return array{success: bool, message: string, table_name?: string} Risultato dell'operazione
+     * @throws \Exception In caso di errore durante il truncate della tabella
      */
     public function clearSingleRuiTable(string $tableName): array
     {
@@ -633,9 +413,9 @@ class RuiCsvImportService
     }
 
     /**
-     * Get import statistics for all RUI tables
+     * Restituisce il conteggio dei record presenti in ciascuna delle 9 tabelle RUI.
      *
-     * @return array Statistics for each table
+     * @return array<string, int> Mappa tabella → numero di record
      */
     public function getImportStatistics(): array
     {
@@ -652,9 +432,10 @@ class RuiCsvImportService
     }
 
     /**
-     * Clear all RUI data (for testing/reset purposes)
+     * Svuota tutte le 9 tabelle RUI tramite `TRUNCATE` (utile per reset o ambienti di test).
      *
-     * @return array Results of the clearing operation
+     * @return array{success: bool, message: string} Risultato dell'operazione
+     * @throws \Exception In caso di errore durante il truncate di una o più tabelle
      */
     public function clearAllRuiData(): array
     {
@@ -673,95 +454,6 @@ class RuiCsvImportService
         } catch (\Exception $e) {
             Log::error('Failed to clear RUI data: ' . $e->getMessage());
             return ['success' => false, 'message' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * Import first 100 records of RUI with debug and optimization
-     *
-     * @return array Debug results
-     */
-    public function debugImportFirst100Rui(): array
-    {
-        try {
-            $startTime = microtime(true);
-            $memoryStart = memory_get_usage(true);
-
-            // Clear existing data
-            Rui::truncate();
-
-            $filePath = public_path('RUI/ELENCO_INTERMEDIARI.csv');
-
-            if (!file_exists($filePath)) {
-                return [
-                    'success' => false,
-                    'message' => 'RUI CSV file not found',
-                    'file_path' => $filePath
-                ];
-            }
-
-            echo "🔍 Starting debug import of first 100 RUI records...\n";
-            echo "📁 File: {$filePath}\n";
-            echo '📊 File size: ' . number_format(filesize($filePath) / 1024 / 1024, 2) . " MB\n\n";
-
-            // Optimized Excel import settings
-            $config = [
-                'memory_limit' => '512M',
-                'chunk_size' => 100,  // Process in small chunks for debug
-                'batch_size' => 50,  // Smaller batch size for better control
-            ];
-
-            // Use Laravel Excel with optimized settings
-            $import = new \App\Imports\RuiIntermediariImport(100, true);  // Limit to 100 records, enable debug
-            Excel::import($import, $filePath);
-
-            $endTime = microtime(true);
-            $memoryEnd = memory_get_usage(true);
-            $executionTime = round($endTime - $startTime, 2);
-            $memoryUsed = round(($memoryEnd - $memoryStart) / 1024 / 1024, 2);
-
-            $recordCount = Rui::count();
-
-            echo "✅ Import completed!\n";
-            echo "📊 Records imported: {$recordCount}\n";
-            echo "⏱️  Execution time: {$executionTime} seconds\n";
-            echo "💾 Memory used: {$memoryUsed} MB\n";
-            echo '🔍 Peak memory: ' . round(memory_get_peak_usage(true) / 1024 / 1024, 2) . " MB\n\n";
-
-            // Show first few records as sample
-            $sampleRecords = Rui::take(5)->get(['numero_iscrizione_rui', 'cognome_nome', 'ragione_sociale', 'stato']);
-            echo "📋 Sample records:\n";
-            foreach ($sampleRecords as $record) {
-                echo "   • {$record->numero_iscrizione_rui}: {$record->cognome_nome} / {$record->ragione_sociale} ({$record->stato})\n";
-            }
-
-            return [
-                'success' => true,
-                'records_imported' => $recordCount,
-                'execution_time' => $executionTime,
-                'memory_used' => $memoryUsed,
-                'peak_memory' => round(memory_get_peak_usage(true) / 1024 / 1024, 2),
-                'config' => $config
-            ];
-        } catch (\Exception $e) {
-            $endTime = microtime(true);
-            $executionTime = round($endTime - $startTime, 2);
-
-            echo "❌ Import failed!\n";
-            echo '🔥 Error: ' . $e->getMessage() . "\n";
-            echo '📍 Line: ' . $e->getLine() . "\n";
-            echo '📁 File: ' . $e->getFile() . "\n";
-            echo "⏱️  Time elapsed: {$executionTime} seconds\n";
-
-            Log::error('RUI debug import failed: ' . $e->getMessage());
-
-            return [
-                'success' => false,
-                'message' => $e->getMessage(),
-                'line' => $e->getLine(),
-                'file' => $e->getFile(),
-                'execution_time' => $executionTime
-            ];
         }
     }
 }

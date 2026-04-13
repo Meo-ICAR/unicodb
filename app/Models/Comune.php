@@ -4,6 +4,41 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Rappresenta un comune italiano dall'elenco ufficiale ISTAT.
+ *
+ * @property int         $id
+ * @property string      $codice_regione
+ * @property string      $codice_unita_territoriale
+ * @property string      $codice_provincia_storico
+ * @property string      $progressivo_comune
+ * @property string      $codice_comune_alfanumerico
+ * @property string      $denominazione
+ * @property string      $denominazione_italiano
+ * @property string      $denominazione_altra_lingua
+ * @property string      $codice_ripartizione_geografica
+ * @property string      $ripartizione_geografica
+ * @property string      $denominazione_regione
+ * @property string      $denominazione_unita_territoriale
+ * @property string      $tipologia_unita_territoriale
+ * @property bool        $capoluogo_provincia
+ * @property string      $sigla_automobilistica
+ * @property string      $codice_comune_numerico
+ * @property string      $codice_comune_110_province
+ * @property string      $codice_comune_107_province
+ * @property string      $codice_comune_103_province
+ * @property string      $codice_catastale
+ * @property string      $codice_nuts1_2021
+ * @property string      $codice_nuts2_2021
+ * @property string      $codice_nuts3_2021
+ * @property string      $codice_nuts1_2024
+ * @property string      $codice_nuts2_2024
+ * @property string      $codice_nuts3_2024
+ * @property \Carbon\Carbon $created_at
+ * @property \Carbon\Carbon $updated_at
+ *
+ * @property-read string $display_name  Denominazione preferita (italiano o default)
+ */
 class Comune extends Model
 {
     protected $fillable = [
